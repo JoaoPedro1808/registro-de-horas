@@ -1,77 +1,84 @@
 import datetime as dt
 import sys
+import time
+from abc import ABC, abstractmethod
 
-horarios = []
+class RegistroHorarios(ABC):
+    @abstractmethod
+    def salvar(self, tipo: str, horario: dt.datetime):
+        pass
+    
+    @abstractmethod
+    def buscarHorarios(self):
+        pass
 
-def registrarEntrada():
-    print("Começando a trabalhar")
-    horarioEntrada = dt.datetime.now()
-    horarios.append({"Entrada registrada": horarioEntrada})
-    print("=" * 30)
-    print("Horario registrado")
-    print("=" * 30)
-    menu()
+class MemoriaArquivo(RegistroHorarios):
+    def __init__(self):
+        self.horarios = []
 
-def registrarEntradaIntervalo():
-    print("Começando o intervalo")
-    horarioInicioIntervalo = dt.datetime.now()
-    horarios.append({"Entrada registrada": horarioInicioIntervalo})
-    print("=" * 30)
-    print("Horario registrado")
-    print("=" * 30)
-    menu() 
+    def salvar(self, tipo, horario):
+        self.horarios.append({"Tipo": tipo, "Horario": horario})
 
-def registrarVoltaIntervalo():
-    print("Voltando a trabalhar")
-    horarioEntrada = dt.datetime.now()
-    horarios.append({"Entrada registrada": horarioEntrada})
-    print("=" * 30)
-    print("Horario registrado")
-    print("=" * 30)
-    menu()
+    def buscarHorarios(self):
+        return self.horarios
+        
+class GestorPontos:
+    def __init__(self, registro: RegistroHorarios):
+        self.registro = registro
 
-def registrarSaida():
-    print("Saindo do trabalho")
-    horarioEntrada = dt.datetime.now()
-    horarios.append({"Entrada registrada": horarioEntrada})
-    print("=" * 30)
-    print("Horario registrado")
-    print("=" * 30)
-    relatorioHorario()
-    sys.exit()
+    def registrarEntrada(self):
+        self.registro.salvar("Entrada", dt.datetime.now())
 
-def relatorioHorario():
-    print("Relatorio de horario diario")
+    def registrarEntradaIntervalo(self):
+        self.registro.salvar("Entrada ao intervalo", dt.datetime.now())
 
-    for hora in horarios:
-        horaFormatada = hora["Entrada registrada"].strftime("%H:%M")
-        print(horaFormatada)
+    def registrarSaidaIntervalo(self):
+        self.registro.salvar("Saida do intervalo", dt.datetime.now())
 
-    print("=" * 30)
-    print("Encerrando o dia")
+    def registrarSaida(self):
+        self.registro.salvar("Saída", dt.datetime.now())
+
+    def gerarRelatorio(self):
+        horarios = self.registro.buscarHorarios()
+
+        print("Relatorio dos Horarios")
+        print("=" * 30)
+
+        for registro in horarios:
+            hora_formatada = registro["Horario"].strftime("%H:%M")
+            print(f"{registro['Tipo']:.<25} {hora_formatada}")
+
+        print("=" * 30)
+        time.sleep(10)
     
 def menu():
+    repositorio = MemoriaArquivo()
+    gestor = GestorPontos(repositorio)
+
+    opcoes = {
+        "1": gestor.registrarEntrada,
+        "2": gestor.registrarEntradaIntervalo,
+        "3": gestor.registrarSaidaIntervalo,
+        "4": gestor.registrarSaida,
+        "5": gestor.gerarRelatorio
+    }
+
     while True:
-        print("Registro de horarios diario")
-        print("Escolha uma das opções abaixo")
+        print("=" * 50)
+        print("Sistema de pontos do João Pedro Santana")
         print("1 - Registrar entrada")
-        print("2 - Registrar inicio de intervalo")
-        print("3 - Registrar fim de intervalo")
+        print("2 - Registrar entrada ao intervalo")
+        print("3 - Registrar saida do intervalo")
         print("4 - Registrar saida")
+        print("5 - Relatorio de horarios")
+        print("=" * 50)
 
-        opcao = int(input("Digite a opção aqui: "))
+        opcaoEscolhida = input("Escreva uma opção: ")
 
-        match opcao:
-            case 1:
-                registrarEntrada()
-            case 2:
-                registrarEntradaIntervalo()
-            case 3:
-                registrarVoltaIntervalo()
-            case 4:
-                registrarSaida()
-            case _:
-                print("Comando desconecido")
+        if opcaoEscolhida in opcoes:
+            opcoes[opcaoEscolhida]()
+        else:
+            print("Opção invalida, tente novamente.")
 
 if __name__ == "__main__":
     menu()
