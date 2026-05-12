@@ -1,5 +1,4 @@
 import datetime as dt
-import sys
 import time
 from abc import ABC, abstractmethod
 
