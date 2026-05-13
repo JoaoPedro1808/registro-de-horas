@@ -1,6 +1,8 @@
+import gspread
 import datetime as dt
 import time
 from abc import ABC, abstractmethod
+from oauth2client.service_account import ServiceAccountCredentials
 
 class RegistroHorarios(ABC):
     @abstractmethod
@@ -11,16 +13,49 @@ class RegistroHorarios(ABC):
     def buscarHorarios(self):
         pass
 
-class MemoriaArquivo(RegistroHorarios):
-    def __init__(self):
-        self.horarios = []
+class AcessoAoSheets(RegistroHorarios):
+    def __init__(self, planilhaNome):
+        escopo = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+
+        try:
+            credencias = ServiceAccountCredentials.from_json_keyfile_name("credencias.json", escopo)
+            self.client = gspread.authorize(credencias)
+            self.sheet = self.client.open(planilhaNome).sheet1
+        except Exception as e:
+            print("Não foi possivel se conectar ao google sheets, verifique se a algum erro com o nome de digitação:", {e})
+            exit()
+
+        self.mapaColunas = {
+            "Entrada": "B",
+            "Entrada ao intervalo": "C",
+            "Saida do intervalo": "D",
+            "Saida": "E"
+        }
 
     def salvar(self, tipo, horario):
-        self.horarios.append({"Tipo": tipo, "Horario": horario})
+        proximaLinha = len(self.sheet.col_values(1)) + 1
 
+        hora = horario.strftime("%H:%M")
+        data = horario.strftime("%d/%m/%y")
+        colunaTipo = self.mapaColunas.get(tipo, "F")
+
+        self.sheet.update_acell(f"A{proximaLinha}", data)
+        self.sheet.update_acell(f"{colunaTipo}{proximaLinha}", hora)
+
+        print(f"{tipo} registrado na {proximaLinha}")
+    
     def buscarHorarios(self):
-        return self.horarios
+        registro = self.sheet.get_all_records()
+        horariosFormatado = []
+
+        for r in registro:
+            if r.get("Entrada"):
+                horario = f"{r["hora"]}"
+                formatacao = dt.datetime.strftime(horario, "%H:%M")
+                horariosFormatado.append({"Tipo": "Entrada", "Horario": formatacao})
         
+        return horariosFormatado
+                
 class GestorPontos:
     def __init__(self, registro: RegistroHorarios):
         self.registro = registro
@@ -48,10 +83,12 @@ class GestorPontos:
             print(f"{registro['Tipo']:.<25} {hora_formatada}")
 
         print("=" * 30)
-        time.sleep(10)
+        time.sleep(2)
     
 def menu():
-    repositorio = MemoriaArquivo()
+    NomePlanilha = "teste"
+
+    repositorio = AcessoAoSheets(NomePlanilha)
     gestor = GestorPontos(repositorio)
 
     opcoes = {
@@ -73,6 +110,10 @@ def menu():
         print("=" * 50)
 
         opcaoEscolhida = input("Escreva uma opção: ")
+
+        if opcaoEscolhida == "0":
+            print("Saindo do programa...")
+            break
 
         if opcaoEscolhida in opcoes:
             opcoes[opcaoEscolhida]()
