@@ -1,8 +1,24 @@
+import threading
+import sys
 import gspread
 import datetime as dt
 import time
 from abc import ABC, abstractmethod
 from oauth2client.service_account import ServiceAccountCredentials
+
+
+def animacaoCarregar(pararEvento):
+    sys.stdout.write("Conectando ao Google Cloud")
+
+    pontos = [".", "..", "...", "   "]
+
+    while not pararEvento.is_set():
+        for ponto in pontos:
+            if pararEvento.is_set():
+                break
+            sys.stdout.write(f"\rConectando com o Google Cloud{ponto}\r")
+            sys.stdout.flush()
+            time.sleep(0.4)
 
 class RegistroHorarios(ABC):
     @abstractmethod
@@ -15,12 +31,21 @@ class RegistroHorarios(ABC):
 
 class AcessoAoSheets(RegistroHorarios):
     def __init__(self, planilhaNome):
+        paraConexao = threading.Event()
+        animacao = threading.Thread(target=animacaoCarregar, args=(paraConexao,))
+
+        animacao.start()
+
         escopo = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 
         try:
             credencias = ServiceAccountCredentials.from_json_keyfile_name("credencias.json", escopo)
             self.client = gspread.authorize(credencias)
             self.sheet = self.client.open(planilhaNome).sheet1
+
+            paraConexao.set()
+            animacao.join()
+
         except Exception as e:
             print("Não foi possivel se conectar ao google sheets, verifique se a algum erro com o nome de digitação:", {e})
             exit()
@@ -107,6 +132,7 @@ def menu():
         print("3 - Registrar saida do intervalo")
         print("4 - Registrar saida")
         print("5 - Relatorio de horarios")
+        print("0 - Saida do sistema")
         print("=" * 50)
 
         opcaoEscolhida = input("Escreva uma opção: ")
